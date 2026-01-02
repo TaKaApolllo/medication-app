@@ -6,16 +6,23 @@ import Link from "next/link";
 import BigButton from "@/components/BigButton";
 import Card from "@/components/Card";
 import PageHeader from "@/components/PageHeader";
+import PhotoOCR from "@/components/PhotoOCR";
 import { useData } from "@/hooks/useData";
+import { useAuth } from "@/contexts/AuthContext";
+import { uploadMedicationPhoto } from "@/lib/supabase/storage";
+import { generateId } from "@/lib/storage";
 
 export default function NewMedPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { addMedication } = useData();
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
   const [times, setTimes] = useState<string[]>([""]);
   const [instructions, setInstructions] = useState("");
   const [saving, setSaving] = useState(false);
+  const [ocrMode, setOcrMode] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   const handleAddTime = () => {
     setTimes([...times, ""]);
@@ -32,6 +39,12 @@ export default function NewMedPage() {
       const newTimes = times.filter((_, i) => i !== index);
       setTimes(newTimes);
     }
+  };
+
+  const handleMedicationSelected = (medName: string, file: File) => {
+    setName(medName);
+    setPhotoFile(file);
+    setOcrMode(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,12 +70,26 @@ export default function NewMedPage() {
     try {
       setSaving(true);
 
+      // 写真がある場合、先にアップロード
+      let photoUrl: string | undefined;
+      if (photoFile && user) {
+        try {
+          const tempId = generateId();
+          photoUrl = await uploadMedicationPhoto(photoFile, tempId);
+        } catch (photoError) {
+          console.error("写真のアップロードに失敗:", photoError);
+          // 写真のアップロード失敗は警告のみ（薬の登録は続行）
+          alert("写真のアップロードに失敗しました。薬の情報のみ登録します。");
+        }
+      }
+
       // 新しい薬を作成
       await addMedication({
         name: name.trim(),
         dosage: dosage.trim(),
         times: validTimes,
         instructions: instructions.trim() || undefined,
+        photoUrl,
       });
 
       // 一覧ページに戻る
@@ -73,6 +100,30 @@ export default function NewMedPage() {
       setSaving(false);
     }
   };
+
+  if (ocrMode) {
+    return (
+      <main className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="max-w-2xl mx-auto">
+          <PageHeader
+            title="写真から薬名を読み取る"
+            backButton={
+              <Link href="/meds">
+                <button className="text-blue-600 text-xl hover:underline">
+                  ← 戻る
+                </button>
+              </Link>
+            }
+          />
+
+          <PhotoOCR
+            onMedicationSelected={handleMedicationSelected}
+            onCancel={() => setOcrMode(false)}
+          />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -87,6 +138,17 @@ export default function NewMedPage() {
             </Link>
           }
         />
+
+        {/* OCRボタン */}
+        <div className="mb-4">
+          <BigButton
+            variant="secondary"
+            className="w-full"
+            onClick={() => setOcrMode(true)}
+          >
+            📷 写真から薬名を読み取る
+          </BigButton>
+        </div>
 
         <Card>
           <form onSubmit={handleSubmit}>
