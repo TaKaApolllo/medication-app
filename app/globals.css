@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* カスタムテーマ */
+@theme {
+  --font-size-xl: 1.5rem;    /* 24px */
+  --font-size-2xl: 1.875rem; /* 30px */
+  --font-size-3xl: 2.25rem;  /* 36px */
+  --font-size-4xl: 3rem;     /* 48px */
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+  /* 高齢者向けに基本フォントサイズを大きめに */
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* 高齢者向けのベーススタイル */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* タッチしやすいボタンのための最小サイズ */
+button {
+  min-height: 48px;
+  min-width: 48px;
+}
