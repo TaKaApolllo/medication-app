@@ -80,7 +80,6 @@ export function getNextDose(medications: Medication[]): NextDose | null {
  */
 export function getTodaySummary(medications: Medication[]): TodaySummary {
   const schedule = getTodaySchedule(medications);
-  const currentTime = getCurrentTime();
 
   let taken = 0;
   let missed = 0;

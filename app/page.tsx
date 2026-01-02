@@ -11,7 +11,7 @@ import {
   getDoseLogsByDate,
   generateId,
 } from "@/lib/storage";
-import { getTodayDate, getCurrentTime, formatDateJa } from "@/lib/dateUtils";
+import { getTodayDate, formatDateJa } from "@/lib/dateUtils";
 import { getNextDose, getTodaySummary } from "@/lib/scheduleUtils";
 
 export default function Home() {
