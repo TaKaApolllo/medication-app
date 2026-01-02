@@ -23,6 +23,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug - Show package.json lint script
+        run: |
+          echo "=== package.json lint script ==="
+          cat package.json | grep -A 1 '"lint"'
+          echo "=== Full scripts section ==="
+          cat package.json | grep -A 10 '"scripts"'
+
       - name: Run ESLint
         run: npm run lint
 
