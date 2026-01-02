@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Card from "@/components/Card";
 import PageHeader from "@/components/PageHeader";
 import { DoseLog, Medication } from "@/types";
-import { getMedications, getDoseLogs } from "@/lib/storage";
+import { useData } from "@/hooks/useData";
 import { formatDate, formatDateJa } from "@/lib/dateUtils";
 
 interface DayLog {
@@ -16,33 +16,46 @@ interface DayLog {
 }
 
 export default function HistoryPage() {
+  const { getMedications, getDoseLogs } = useData();
   const [dayLogs, setDayLogs] = useState<DayLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const medications = getMedications();
-    const allLogs = getDoseLogs();
+    const loadHistory = async () => {
+      try {
+        setLoading(true);
+        const medications = await getMedications();
+        const allLogs = await getDoseLogs();
 
-    // 過去7日間の日付を生成
-    const dates: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      dates.push(formatDate(date));
-    }
+        // 過去7日間の日付を生成
+        const dates: string[] = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          dates.push(formatDate(date));
+        }
 
-    // 日付ごとにログをグループ化
-    const grouped: DayLog[] = dates.map((date) => {
-      const logsForDate = allLogs.filter((log) => log.scheduledDate === date);
-      return {
-        date,
-        logs: logsForDate.map((log) => ({
-          log,
-          medication: medications.find((m) => m.id === log.medId),
-        })),
-      };
-    });
+        // 日付ごとにログをグループ化
+        const grouped: DayLog[] = dates.map((date) => {
+          const logsForDate = allLogs.filter((log) => log.scheduledDate === date);
+          return {
+            date,
+            logs: logsForDate.map((log) => ({
+              log,
+              medication: medications.find((m) => m.id === log.medId),
+            })),
+          };
+        });
 
-    setDayLogs(grouped);
+        setDayLogs(grouped);
+      } catch (error) {
+        console.error("履歴の読み込みに失敗:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistory();
   }, []);
 
   const getStatusColor = (status: string) => {
@@ -87,7 +100,13 @@ export default function HistoryPage() {
       <div className="max-w-2xl mx-auto">
         <PageHeader title="服薬履歴" subtitle="過去7日間の記録" />
 
-        {dayLogs.length === 0 ? (
+        {loading ? (
+          <Card>
+            <p className="text-xl text-center text-gray-600">
+              読み込み中...
+            </p>
+          </Card>
+        ) : dayLogs.length === 0 ? (
           <Card>
             <p className="text-xl text-center text-gray-600">
               まだ記録がありません

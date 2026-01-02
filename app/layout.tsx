@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "服薬管理アプリ",
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="antialiased pb-20">
-        {children}
-        <Navigation />
+        <Providers>
+          {children}
+          <Navigation />
+        </Providers>
       </body>
     </html>
   );

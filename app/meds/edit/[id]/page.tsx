@@ -7,31 +7,47 @@ import BigButton from "@/components/BigButton";
 import Card from "@/components/Card";
 import PageHeader from "@/components/PageHeader";
 import { Medication } from "@/types";
-import { getMedicationById, updateMedication } from "@/lib/storage";
+import { useData } from "@/hooks/useData";
 
 export default function EditMedPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { getMedicationById, updateMedication } = useData();
 
   const [medication, setMedication] = useState<Medication | null>(null);
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
   const [times, setTimes] = useState<string[]>([""]);
   const [instructions, setInstructions] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const med = getMedicationById(id);
-    if (med) {
-      setMedication(med);
-      setName(med.name);
-      setDosage(med.dosage);
-      setTimes(med.times);
-      setInstructions(med.instructions || "");
-    } else {
-      alert("お薬が見つかりませんでした");
-      router.push("/meds");
-    }
+    const loadMedication = async () => {
+      try {
+        setLoading(true);
+        const med = await getMedicationById(id);
+        if (med) {
+          setMedication(med);
+          setName(med.name);
+          setDosage(med.dosage);
+          setTimes(med.times);
+          setInstructions(med.instructions || "");
+        } else {
+          alert("お薬が見つかりませんでした");
+          router.push("/meds");
+        }
+      } catch (error) {
+        console.error("データの読み込みに失敗:", error);
+        alert("データの読み込みに失敗しました");
+        router.push("/meds");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMedication();
   }, [id, router]);
 
   const handleAddTime = () => {
@@ -51,7 +67,7 @@ export default function EditMedPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // バリデーション
@@ -71,19 +87,27 @@ export default function EditMedPage() {
       return;
     }
 
-    // 更新
-    updateMedication(id, {
-      name: name.trim(),
-      dosage: dosage.trim(),
-      times: validTimes,
-      instructions: instructions.trim() || undefined,
-    });
+    try {
+      setSaving(true);
 
-    // 一覧ページに戻る
-    router.push("/meds");
+      // 更新
+      await updateMedication(id, {
+        name: name.trim(),
+        dosage: dosage.trim(),
+        times: validTimes,
+        instructions: instructions.trim() || undefined,
+      });
+
+      // 一覧ページに戻る
+      router.push("/meds");
+    } catch (error) {
+      console.error("更新に失敗:", error);
+      alert("更新に失敗しました");
+      setSaving(false);
+    }
   };
 
-  if (!medication) {
+  if (loading || !medication) {
     return (
       <main className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="max-w-2xl mx-auto">
@@ -192,8 +216,13 @@ export default function EditMedPage() {
                 </BigButton>
               </Link>
               <div className="flex-1">
-                <BigButton type="submit" variant="primary" className="w-full">
-                  更新する
+                <BigButton
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  disabled={saving}
+                >
+                  {saving ? "更新中..." : "更新する"}
                 </BigButton>
               </div>
             </div>

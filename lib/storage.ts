@@ -38,23 +38,32 @@ export function saveMedications(medications: Medication[]): void {
 /**
  * 薬を追加
  */
-export function addMedication(medication: Medication): void {
+export function addMedication(medication: Omit<Medication, 'id' | 'createdAt'>): Medication {
+  const newMed: Medication = {
+    ...medication,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  };
   const medications = getMedications();
-  medications.push(medication);
+  medications.push(newMed);
   saveMedications(medications);
+  return newMed;
 }
 
 /**
  * 薬を更新
  */
-export function updateMedication(id: string, updates: Partial<Medication>): void {
+export function updateMedication(id: string, updates: Partial<Omit<Medication, 'id' | 'createdAt'>>): Medication {
   const medications = getMedications();
   const index = medications.findIndex(m => m.id === id);
 
-  if (index !== -1) {
-    medications[index] = { ...medications[index], ...updates };
-    saveMedications(medications);
+  if (index === -1) {
+    throw new Error('Medication not found');
   }
+
+  medications[index] = { ...medications[index], ...updates };
+  saveMedications(medications);
+  return medications[index];
 }
 
 /**
@@ -74,9 +83,9 @@ export function deleteMedication(id: string): void {
 /**
  * IDで薬を取得
  */
-export function getMedicationById(id: string): Medication | undefined {
+export function getMedicationById(id: string): Medication | null {
   const medications = getMedications();
-  return medications.find(m => m.id === id);
+  return medications.find(m => m.id === id) || null;
 }
 
 /**
@@ -110,22 +119,53 @@ export function saveDoseLogs(logs: DoseLog[]): void {
 /**
  * 服薬記録を追加
  */
-export function addDoseLog(log: DoseLog): void {
+export function addDoseLog(log: Omit<DoseLog, 'id'>): DoseLog {
+  const newLog: DoseLog = {
+    ...log,
+    id: generateId(),
+  };
   const logs = getDoseLogs();
-  logs.push(log);
+  logs.push(newLog);
   saveDoseLogs(logs);
+  return newLog;
 }
 
 /**
  * 服薬記録を更新
  */
-export function updateDoseLog(id: string, updates: Partial<DoseLog>): void {
+export function updateDoseLog(id: string, updates: Partial<Omit<DoseLog, 'id' | 'medId' | 'scheduledDate' | 'scheduledTime'>>): DoseLog {
   const logs = getDoseLogs();
   const index = logs.findIndex(l => l.id === id);
 
-  if (index !== -1) {
-    logs[index] = { ...logs[index], ...updates };
-    saveDoseLogs(logs);
+  if (index === -1) {
+    throw new Error('Dose log not found');
+  }
+
+  logs[index] = { ...logs[index], ...updates };
+  saveDoseLogs(logs);
+  return logs[index];
+}
+
+/**
+ * 服薬記録を削除
+ */
+export function deleteDoseLog(id: string): void {
+  const logs = getDoseLogs();
+  const filtered = logs.filter(l => l.id !== id);
+  saveDoseLogs(filtered);
+}
+
+/**
+ * すべてのデータを削除
+ */
+export function clearAllData(): void {
+  if (!isBrowser) return;
+
+  try {
+    localStorage.removeItem(MEDICATIONS_KEY);
+    localStorage.removeItem(DOSE_LOGS_KEY);
+  } catch (error) {
+    console.error("Failed to clear data:", error);
   }
 }
 

@@ -6,15 +6,16 @@ import Link from "next/link";
 import BigButton from "@/components/BigButton";
 import Card from "@/components/Card";
 import PageHeader from "@/components/PageHeader";
-import { Medication } from "@/types";
-import { addMedication, generateId } from "@/lib/storage";
+import { useData } from "@/hooks/useData";
 
 export default function NewMedPage() {
   const router = useRouter();
+  const { addMedication } = useData();
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
   const [times, setTimes] = useState<string[]>([""]);
   const [instructions, setInstructions] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const handleAddTime = () => {
     setTimes([...times, ""]);
@@ -33,7 +34,7 @@ export default function NewMedPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // バリデーション
@@ -53,20 +54,24 @@ export default function NewMedPage() {
       return;
     }
 
-    // 新しい薬を作成
-    const newMed: Medication = {
-      id: generateId(),
-      name: name.trim(),
-      dosage: dosage.trim(),
-      times: validTimes,
-      instructions: instructions.trim() || undefined,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      setSaving(true);
 
-    addMedication(newMed);
+      // 新しい薬を作成
+      await addMedication({
+        name: name.trim(),
+        dosage: dosage.trim(),
+        times: validTimes,
+        instructions: instructions.trim() || undefined,
+      });
 
-    // 一覧ページに戻る
-    router.push("/meds");
+      // 一覧ページに戻る
+      router.push("/meds");
+    } catch (error) {
+      console.error("保存に失敗:", error);
+      alert("保存に失敗しました");
+      setSaving(false);
+    }
   };
 
   return (
@@ -163,13 +168,18 @@ export default function NewMedPage() {
             {/* 送信ボタン */}
             <div className="flex gap-3">
               <Link href="/meds" className="flex-1">
-                <BigButton variant="secondary" className="w-full">
+                <BigButton variant="secondary" className="w-full" disabled={saving}>
                   キャンセル
                 </BigButton>
               </Link>
               <div className="flex-1">
-                <BigButton type="submit" variant="primary" className="w-full">
-                  登録する
+                <BigButton
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  disabled={saving}
+                >
+                  {saving ? "登録中..." : "登録する"}
                 </BigButton>
               </div>
             </div>

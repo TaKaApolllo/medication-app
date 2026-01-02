@@ -7,24 +7,40 @@ import BigButton from "@/components/BigButton";
 import Card from "@/components/Card";
 import PageHeader from "@/components/PageHeader";
 import { Medication } from "@/types";
-import { getMedications, deleteMedication } from "@/lib/storage";
+import { useData } from "@/hooks/useData";
 
 export default function MedsPage() {
   const router = useRouter();
+  const { getMedications, deleteMedication } = useData();
   const [medications, setMedications] = useState<Medication[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const loadMedications = () => {
-    setMedications(getMedications());
+  const loadMedications = async () => {
+    try {
+      setLoading(true);
+      const meds = await getMedications();
+      setMedications(meds);
+    } catch (error) {
+      console.error("データの読み込みに失敗:", error);
+      alert("データの読み込みに失敗しました");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadMedications();
   }, []);
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (confirm(`「${name}」を削除してもよろしいですか？`)) {
-      deleteMedication(id);
-      loadMedications();
+      try {
+        await deleteMedication(id);
+        await loadMedications();
+      } catch (error) {
+        console.error("削除に失敗:", error);
+        alert("削除に失敗しました");
+      }
     }
   };
 
@@ -41,7 +57,13 @@ export default function MedsPage() {
         </Link>
 
         {/* 薬一覧 */}
-        {medications.length === 0 ? (
+        {loading ? (
+          <Card>
+            <p className="text-xl text-center text-gray-600">
+              読み込み中...
+            </p>
+          </Card>
+        ) : medications.length === 0 ? (
           <Card>
             <p className="text-xl text-center text-gray-600">
               まだお薬が登録されていません

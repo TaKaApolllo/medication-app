@@ -4,17 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BigButton from "@/components/BigButton";
 import Card from "@/components/Card";
-import { Medication, DoseLog } from "@/types";
-import {
-  getMedications,
-  addDoseLog,
-  getDoseLogsByDate,
-  generateId,
-} from "@/lib/storage";
-import { getTodayDate, formatDateJa } from "@/lib/dateUtils";
+import { Medication } from "@/types";
+import { useData } from "@/hooks/useData";
+import { getTodayDate, formatDateJa, formatTime } from "@/lib/dateUtils";
 import { getNextDose, getTodaySummary } from "@/lib/scheduleUtils";
 
 export default function Home() {
+  const { getMedications, getDoseLogs, addDoseLog } = useData();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [nextDose, setNextDose] = useState<ReturnType<typeof getNextDose>>(null);
   const [summary, setSummary] = useState<ReturnType<typeof getTodaySummary>>({
@@ -24,13 +20,21 @@ export default function Home() {
     upcoming: 0,
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // データ読み込み
-  const loadData = () => {
-    const meds = getMedications();
-    setMedications(meds);
-    setNextDose(getNextDose(meds));
-    setSummary(getTodaySummary(meds));
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const meds = await getMedications();
+      setMedications(meds);
+      setNextDose(getNextDose(meds));
+      setSummary(getTodaySummary(meds));
+    } catch (error) {
+      console.error("データの読み込みに失敗:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -38,45 +42,64 @@ export default function Home() {
   }, []);
 
   // 「飲んだ」ボタンを押したときの処理
-  const handleTakeMedication = () => {
+  const handleTakeMedication = async () => {
     if (!nextDose) return;
 
-    const today = getTodayDate();
-    const logs = getDoseLogsByDate(today);
+    try {
+      const today = getTodayDate();
+      const logs = await getDoseLogs(today, today);
 
-    // すでに記録されているかチェック
-    const existingLog = logs.find(
-      (log) =>
-        log.medId === nextDose.medication.id &&
-        log.scheduledTime === nextDose.scheduledTime
-    );
+      // すでに記録されているかチェック
+      const existingLog = logs.find(
+        (log) =>
+          log.medId === nextDose.medication.id &&
+          log.scheduledTime === nextDose.scheduledTime
+      );
 
-    if (existingLog) {
-      alert("すでに記録されています");
-      return;
+      if (existingLog) {
+        alert("すでに記録されています");
+        return;
+      }
+
+      // 新しい記録を作成
+      await addDoseLog({
+        medId: nextDose.medication.id,
+        scheduledDate: today,
+        scheduledTime: nextDose.scheduledTime,
+        takenAt: new Date().toISOString(),
+        status: "taken",
+      });
+
+      // 成功メッセージ表示
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+
+      // データ再読み込み
+      await loadData();
+    } catch (error) {
+      console.error("記録に失敗:", error);
+      alert("記録に失敗しました");
     }
-
-    // 新しい記録を作成
-    const newLog: DoseLog = {
-      id: generateId(),
-      medId: nextDose.medication.id,
-      scheduledDate: today,
-      scheduledTime: nextDose.scheduledTime,
-      takenAt: new Date().toISOString(),
-      status: "taken",
-    };
-
-    addDoseLog(newLog);
-
-    // 成功メッセージ表示
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
-
-    // データ再読み込み
-    loadData();
   };
 
   const today = getTodayDate();
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 text-blue-600">
+            服薬管理
+          </h1>
+          <Card>
+            <p className="text-xl text-center text-gray-600">
+              読み込み中...
+            </p>
+          </Card>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-6">
